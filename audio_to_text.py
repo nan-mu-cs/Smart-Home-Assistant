@@ -1,4 +1,5 @@
 import pyaudio
+import webrtcvad
 import wave
 import uuid
 import os
@@ -7,26 +8,38 @@ import openai
 
 class AudioToTextWorker:
     def __init__(self) -> None:
-        self.chunk = 1024
-        self.channels = 2
-        self.fs = 44100
-        self.seconds = 3
+        self.channels = 1
+        self.frame_rate = 16000 # webrtcvad only support frame rate at 8000, 16000, 32000 or 48000 Hz.
+        self.per_sample_duration = 0.03 # webrtcvad only support per sample duration at 10, 20, or 30 ms.
+        self.max_non_speaking_seconds = 2
         self.filename = ""
         self.p = pyaudio.PyAudio()
+        self.vad = webrtcvad.Vad()
+        self.vad.set_mode(1)
+
+        assert webrtcvad.valid_rate_and_frame_length(self.frame_rate, int(self.frame_rate * self.per_sample_duration)), "invalid frame_rate or per_sample_duration for webrtcvad"
     
     def record_audio(self):
         stream = self.p.open(format=pyaudio.paInt16,
                 channels=self.channels,
-                rate=self.fs,
-                frames_per_buffer=self.chunk,
+                rate=self.frame_rate,
                 input=True)
         
         frames = []
 
         print("start recording...")
-        for i in range(0, int(self.fs / self.chunk * self.seconds)):
-            data = stream.read(self.chunk)
+
+        non_speaking_seconds = 0
+        while True:
+            data = stream.read(int(self.frame_rate*30/1000))
             frames.append(data)
+            
+            if not self.vad.is_speech(data, self.frame_rate):
+                non_speaking_seconds += self.per_sample_duration
+                if non_speaking_seconds >= self.max_non_speaking_seconds:
+                    break
+            else:
+                non_speaking_seconds = 0
         print("end recording...")
 
         stream.stop_stream()
@@ -37,7 +50,7 @@ class AudioToTextWorker:
         wf = wave.open(self.filename, 'wb')
         wf.setnchannels(self.channels)
         wf.setsampwidth(self.p.get_sample_size(pyaudio.paInt16))
-        wf.setframerate(self.fs)
+        wf.setframerate(self.frame_rate)
         wf.writeframes(b''.join(frames))
         wf.close()
     
