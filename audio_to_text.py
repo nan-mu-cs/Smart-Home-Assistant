@@ -3,7 +3,8 @@ import webrtcvad
 import wave
 import uuid
 import os
-import openai
+
+from openai import OpenAI
 
 
 class AudioToTextWorker:
@@ -11,11 +12,12 @@ class AudioToTextWorker:
         self.channels = 1
         self.frame_rate = 16000 # webrtcvad only support frame rate at 8000, 16000, 32000 or 48000 Hz.
         self.per_sample_duration = 0.03 # webrtcvad only support per sample duration at 10, 20, or 30 ms.
-        self.max_non_speaking_seconds = 2
+        self.max_non_speaking_seconds = 3
         self.filename = ""
         self.p = pyaudio.PyAudio()
         self.vad = webrtcvad.Vad()
         self.vad.set_mode(1)
+        self.client = OpenAI()
 
         assert webrtcvad.valid_rate_and_frame_length(self.frame_rate, int(self.frame_rate * self.per_sample_duration)), "invalid frame_rate or per_sample_duration for webrtcvad"
     
@@ -44,7 +46,7 @@ class AudioToTextWorker:
 
         stream.stop_stream()
         stream.close()
-        self.p.terminate()
+        #self.p.terminate()
 
         self.filename = f'{str(uuid.uuid4())}.wav'
         wf = wave.open(self.filename, 'wb')
@@ -58,12 +60,12 @@ class AudioToTextWorker:
         assert os.path.exists(self.filename), f"Audio not exist, call record_audio function first."
 
         f = open(self.filename, "rb")
-        transcript = openai.Audio.transcribe("whisper-1", f)
+        transcript = self.client.audio.transcriptions.create(model="whisper-1", file=f)
 
         if delete_audio_file:
             os.remove(self.filename)
             self.filename = ""
-        return transcript["text"]
+        return transcript.text
     
 if __name__ == '__main__':
     worker = AudioToTextWorker()
