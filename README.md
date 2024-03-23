@@ -12,7 +12,7 @@ We plan to integrate OpenAI’s Whisper (a voice to text model) and GPT’s API 
 
 Here is the overall architecture of this project:
 
-![System Architecture](fig1.png)
+![System Architecture](fig2.png)
 
 1. Gather user voice input via Bluetooth speaker and communicate with Raspberry Pi.
 2. Send voice input to OpenAI Whisper model(https://platform.openai.com/docs/guides/speech-to-text) to get text of it.
@@ -36,7 +36,7 @@ We use OpenAI ChatGPT API(https://platform.openai.com/docs/guides/gpt) to achiev
 
 Important to note that, ChatGPT doesn’t know how to archive that out of box. We need to teach it to do so via system prompts. We tune the system prompts in OpenAI playground and after a few iterations. It can now learn to response with API payload when requesting device control and response with natural languages for general conversations:
 
-![System Prompts](fig2.png)
+![System Prompts](fig1.png)
 
 here is the system prompts we used in this project:
 
